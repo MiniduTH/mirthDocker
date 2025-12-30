@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mirth-connect
+  labels:
+    app: mirth-connect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mirth-connect
+  template:
+    metadata:
+      labels:
+        app: mirth-connect
+      # Optional: Annotations for Prometheus auto-discovery
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9404"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: mirth-connect
+          image: minidu0th/mirth-jmx:v1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8444
+              name: https
+            - containerPort: 8081
+              name: http
+            - containerPort: 9404  # <--- NEW METRICS PORT
+              name: metrics
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mirth-connect
+spec:
+  selector:
+    app: mirth-connect
+  ports:
+    - protocol: TCP
+      port: 8444
+      targetPort: 8444
+      name: https
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+      name: http
+    # Expose metrics internally so Prometheus can find them
+    - protocol: TCP
+      port: 9404
+      targetPort: 9404
+      name: metrics
+  type: ClusterIP

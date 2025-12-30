@@ -1,30 +1,24 @@
-FROM eclipse-temurin:8-jdk
+FROM nextgenhealthcare/connect:latest
 
-ENV MIRTH_VERSION=4.5.2.b363
-ENV MIRTH_HOME=/opt/mirth-connect
+# 1. Define versions for easy updates
+ENV JMX_AGENT_VERSION=1.0.1
+ENV JMX_PORT=9404
 
-RUN apt-get update && apt-get install -y wget tar && rm -rf /var/lib/apt/lists/*
+# 2. Download the JMX Exporter Java Agent
+# We use ADD because it can download files directly (cleaner than installing wget)
+ADD https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${JMX_AGENT_VERSION}/jmx_prometheus_javaagent-${JMX_AGENT_VERSION}.jar /opt/jmx_prometheus_javaagent.jar
 
-WORKDIR /opt
-RUN wget https://s3.amazonaws.com/downloads.mirthcorp.com/connect/${MIRTH_VERSION}/mirthconnect-${MIRTH_VERSION}-unix.tar.gz \
- && tar -xzf mirthconnect-${MIRTH_VERSION}-unix.tar.gz \
- && mv "Mirth Connect" mirth-connect \
- && rm mirthconnect-${MIRTH_VERSION}-unix.tar.gz
+# 3. Copy your config file into the image
+COPY jmx-exporter.yaml /opt/jmx-exporter.yaml
 
-WORKDIR $MIRTH_HOME
+# 4. Set permissions (Mirth runs as a non-root user usually)
+USER root
+RUN chmod 644 /opt/jmx_prometheus_javaagent.jar /opt/jmx-exporter.yaml
+USER mirth
 
-EXPOSE 8080 8443 32500
+# 5. Inject the Agent
+# This variable tells Java: "Load this agent and read this config file on this port"
+ENV JAVA_TOOL_OPTIONS="-javaagent:/opt/jmx_prometheus_javaagent.jar=${JMX_PORT}:/opt/jmx-exporter.yaml"
 
-ENV JMX_HOSTNAME=localhost
-ENV JMX_PORT=32500
-
-CMD ["sh", "-c", "exec java \
- -Djava.awt.headless=true \
- -Dcom.sun.management.jmxremote=true \
- -Dcom.sun.management.jmxremote.port=${JMX_PORT} \
- -Dcom.sun.management.jmxremote.rmi.port=${JMX_PORT} \
- -Dcom.sun.management.jmxremote.authenticate=false \
- -Dcom.sun.management.jmxremote.ssl=false \
- -Dcom.sun.management.jmxremote.local.only=false \
- -Djava.rmi.server.hostname=${JMX_HOSTNAME} \
- -jar mirth-server-launcher.jar"]
+# 6. Expose the metrics port
+EXPOSE ${JMX_PORT}
