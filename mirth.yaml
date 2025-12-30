@@ -1,0 +1,48 @@
+# Mirth Connect with Remote JMX Monitoring (VisualVM)
+# Deploy:       kubectl apply -f mirth.yaml
+# VisualVM:     Connect to 172.15.100.12:325003
+# Web UI:       https://172.15.100.12:30443 (admin/admin)
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mirth-connect
+spec:
+  type: NodePort
+  selector:
+    app: mirth-connect
+  ports:
+    - name: https
+      port: 8443
+      targetPort: 8443
+      nodePort: 30443
+    - name: jmx
+      port: 32500
+      targetPort: 32500
+      nodePort: 325003
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mirth-connect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mirth-connect
+  template:
+    metadata:
+      labels:
+        app: mirth-connect
+    spec:
+      containers:
+        - name: mirth
+          image: minidu0th/csi-mirth:v2.3
+          ports:
+            - containerPort: 8443
+            - containerPort: 32500
+          env:
+            - name: JMX_HOSTNAME
+              value: "172.15.100.237"
