@@ -56,7 +56,6 @@ spec:
       port: 8081
       targetPort: 8081
       name: http
-    # Expose metrics internally so Prometheus can find them
     - protocol: TCP
       port: 9404
       targetPort: 9404

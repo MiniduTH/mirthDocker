@@ -21,4 +21,4 @@ USER mirth
 ENV JAVA_TOOL_OPTIONS="-javaagent:/opt/jmx_prometheus_javaagent.jar=${JMX_PORT}:/opt/jmx-exporter.yaml"
 
 # 6. Expose the metrics port
-EXPOSE ${JMX_PORT}
+EXPOSE ${JMX_PORT} 8081 8444
